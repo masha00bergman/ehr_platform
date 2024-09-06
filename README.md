@@ -6,6 +6,23 @@ Electronic health record (EHR) systems are digital records of a patient's
 medical history that are used by healthcare systems to collect
 and store patient information.
 
+## Resources
+
+Organization https://hl7.org/fhir/R5/organization.html
+
+Location https://hl7.org/FHIR/R5/location.html
+
+Practitioner https://hl7.org/fhir/R5/practitioner.html
+
+Patient https://hl7.org/fhir/R5/patient.html
+
+Person https://www.hl7.org/fhir/R5/person.html
+
+Appointment https://hl7.org/fhir/R5/appointment.html
+
+Encounter https://hl7.org/fhir/R5/encounter.html
+
+
 ## Overview
 
 ![ER Diagram](ehr.png)
