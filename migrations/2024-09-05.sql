@@ -1,3 +1,17 @@
+create schema ehr;
+
+create user service_account_admin;
+grant all privileges on all tables in schema ehr to service_account_admin;
+
+create user service_account_db;
+grant select, insert, update, delete, truncate on all tables in schema ehr to service_account_db;
+grant create on schema ehr to service_account_admin;
+
+create user service_account_app;
+grant select, insert, update, delete on all tables in schema ehr to service_account_app;
+
+set search_path  to ehr, public;
+
 create table phone_type(
   phone_type_id bigserial primary key,
   phone_type_name varchar(100) not null,
@@ -137,7 +151,7 @@ INSERT INTO phone (phone_type_id, phone_number, is_whatsapp, is_active, created_
 create table address(
   address_id bigserial primary key,
   address_name varchar(255) not null,
-  -- NOTE: https://en.wikipedia.org/wiki/List_of_ISO_3166_country_codes.
+  -- NOTE: https://en.wikipedia.org/wiki/List_of_ISO_3166_country_codes. For example, "RU" and not "rus"
   address_country_code char(2) not null
     check (
       address_country_code = upper(address_country_code)
@@ -430,6 +444,7 @@ create table person(
       || lower(regexp_replace(last_name, '[\W0-9]', ''))
     )
   stored,
+  -- NOTE: Self-explanatory.
   sex_code char(1) null check (sex_code in ('m', 'f')),
   date_of_birth date not null,
   -- NOTE: Easy to refactor to 1 Person -> N Addresses.
@@ -735,6 +750,7 @@ create table appointment_slot(
   facility_id bigint references facility(facility_id),
   practitioner_id bigint references practitioner(practitioner_id),
 
+  -- NOTE: Start should be less than End. PS, two CHECKs are redundant.
   start_ts timestamp not null check (start_ts < end_ts),
   end_ts timestamp not null check (start_ts < end_ts),
 
@@ -743,6 +759,7 @@ create table appointment_slot(
   created_ts timestamp not null default (now() at time zone 'utc'),
   updated_ts timestamp not null default (now() at time zone 'utc'),
 
+  -- NOTE: One Practitioner shouldn't have two Slots at the same time.
   unique (practitioner_id, start_ts, end_ts)
 )
 ;
@@ -763,12 +780,14 @@ create table appointment(
   appointment_slot_id bigint null references appointment_slot(appointment_slot_id),
   patient_id bigint not null references patient(patient_id),
 
+  -- NOTE: Start < End. Also, Start may not be present for Proposed, Canceled and Wait-List Appointments.
   start_ts_actual timestamp null
     check(
       (start_ts_actual is not null and start_ts_actual < end_ts_actual)
       -- NOTE: According to FHIR.
       or (start_ts_actual is null and appointment_status_id in (1, 6, 9))
     ),
+  -- NOTE: Start < End. Also, End may not be present for Proposed, Canceled and Wait-List Appointments.
   end_ts_actual timestamp null
     check(
       (end_ts_actual is not null and start_ts_actual < end_ts_actual)
@@ -876,7 +895,8 @@ create table encounter(
   created_ts timestamp not null default (now() at time zone 'utc'),
   updated_ts timestamp not null default (now() at time zone 'utc'),
 
-  unique (encounter_id, appointment_id)
+  -- NOTE: An Encounter has 1-to-1 relationship with Appointment.
+  unique (appointment_id)
 )
 ;
 
@@ -912,7 +932,7 @@ create table encounter_assessment(
   encounter_id bigint not null references encounter(encounter_id),
   line_item_n bigint not null,
 
-  -- NOTE: Assessment section may only include
+  -- NOTE: Assessment section may only include Diagnoses (ICD Code Set).
   encounter_assessment_code_set_id bigint not null
     check (encounter_assessment_code_set_id = 1)
     references encounter_meat_code_set(encounter_meat_code_set_id),
@@ -934,7 +954,7 @@ create table encounter_treatment(
   encounter_id bigint not null references encounter(encounter_id),
   line_item_n bigint not null,
 
-  -- NOTE: Treatment section shouldn't include the diagnosis.
+  -- NOTE: Treatment section shouldn't include Diagnosis (ICD Code Set). Because they are already present in Assessment.
   encounter_treatment_code_set_id bigint not null
     check (encounter_treatment_code_set_id != 1)
     references encounter_meat_code_set(encounter_meat_code_set_id),
