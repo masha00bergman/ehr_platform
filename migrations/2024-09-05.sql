@@ -437,12 +437,16 @@ create table person(
   first_name varchar(255) not null,
   last_name varchar(255) not null,
   middle_name varchar(255) null,
-  full_name varchar(512) generated always
-    as (
-      lower(regexp_replace(first_name, '[\W0-9]', ''))
-      || ' '
-      || lower(regexp_replace(last_name, '[\W0-9]', ''))
+  full_name_sv tsvector generated always as (
+    to_tsvector(
+      'english',
+        first_name
+        || ' '
+        || coalesce(middle_name, '')
+        || ' '
+        || last_name
     )
+  )
   stored,
   -- NOTE: Self-explanatory.
   sex_code char(1) null check (sex_code in ('m', 'f')),
@@ -460,8 +464,8 @@ create table person(
 )
 ;
 
--- NOTE: Typical Search by Name (a better solution would be to use a Full-Text Search Index).
-create index if not exists person_full_name on person(full_name);
+-- NOTE: Typical Search by Full Name (Full-Text Search Index).
+create index if not exists person_full_name on person using gin(full_name_sv);
 -- NOTE: Typical Search by DOB (for priority treatment / analytical tasks).
 create index if not exists person_date_of_birth on person(date_of_birth);
 -- NOTE: Typical JOIN ON Phone.
