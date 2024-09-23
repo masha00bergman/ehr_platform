@@ -10,7 +10,7 @@ grant create on schema ehr to service_account_admin;
 create user service_account_app;
 grant select, insert, update, delete on all tables in schema ehr to service_account_app;
 
-set search_path  to ehr, public;
+set search_path to ehr, public;
 
 create table phone_type(
   phone_type_id bigserial primary key,
@@ -903,6 +903,12 @@ create table encounter(
   unique (appointment_id)
 )
 ;
+
+-- NOTE:
+--  1. At any time there should be just a small number of unsigned Encounters.
+--  2. We want to be able to find them out fast. To push Doctors to sign them asap.
+create index if not exists encounter_is_not_signed on encounter(is_signed)
+where not is_signed;
 
 -- NOTE: Typical Search. Either by Prefix (encounter_status_id) or by "status = Completed and not is_signed" Full Index.
 create index if not exists encounter_status_id on encounter(encounter_status_id, is_signed);
